@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiMo DB Studio - Visual Database Schema Designer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .header {
+            background: rgba(26, 26, 46, 0.95);
+            border-bottom: 2px solid #6c5ce7;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #a29bfe, #6c5ce7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            border: none;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.4);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #6c5ce7;
+            color: #a29bfe;
+        }
+        
+        .btn-outline:hover {
+            background: rgba(108, 92, 231, 0.1);
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: rgba(26, 26, 46, 0.9);
+            border-right: 1px solid #6c5ce7;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .sidebar-title {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #a29bfe;
+            border-bottom: 1px solid #6c5ce7;
+            padding-bottom: 0.5rem;
+        }
+        
+        .table-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .table-item {
+            background: rgba(108, 92, 231, 0.1);
+            border: 1px solid rgba(108, 92, 231, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem;
+            cursor: grab;
+            transition: all 0.3s ease;
+        }
+        
+        .table-item:hover {
+            background: rgba(108, 92, 231, 0.2);
+            transform: translateX(5px);
+            border-color: #6c5ce7;
+        }
+        
+        .table-item.dragging {
+            opacity: 0.7;
+            cursor: grabbing;
+        }
+        
+        .table-name {
+            font-weight: 600;
+            color: #a29bfe;
+            margin-bottom: 0.25rem;
+        }
+        
+        .table-columns {
+            font-size: 0.85rem;
+            color: #b0b0b0;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #schemaCanvas {
+            background: transparent;
+            cursor: move;
+        }
+        
+        .instructions {
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            background: rgba(26, 26, 46, 0.9);
+            border: 1px solid #6c5ce7;
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: 0.9rem;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .instructions h3 {
+            color: #a29bfe;
+            margin-bottom: 0.5rem;
+        }
+        
+        .instructions ul {
+            margin-left: 1.2rem;
+        }
+        
+        .instructions li {
+            margin-bottom: 0.25rem;
+        }
+        
+        .status-bar {
+            background: rgba(26, 26, 46, 0.95);
+            border-top: 1px solid #6c5ce7;
+            padding: 0.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #b0b0b0;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6c5ce7;
+        }
+        
+        .grid-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(108, 92, 231, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(108, 92, 231, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">MiMo DB Studio</div>
+        <div class="controls">
+            <button class="btn" onclick="addNewTable()">+ Add Table</button>
+            <button class="btn btn-outline" onclick="saveSchema()">Export SQL</button>
+            <button class="btn btn-outline" onclick="clearCanvas()">Clear</button>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="sidebar">
+            <h3 class="sidebar-title">Tables</h3>
+            <div class="table-list">
+                <div class="table-item" draggable="true" data-table="users">
+                    <div class="table-name">Users</div>
+                    <div class="table-columns">id, name, email, created_at</div>
+                </div>
+                <div class="table-item" draggable="true" data-table="posts">
+                    <div class="table-name">Posts</div>
+                    <div class="table-columns">id, title, content, user_id, created_at</div>
+                </div>
+                <div class="table-item" draggable="true" data-table="comments">
+                    <div class="table-name">Comments</div>
+                    <div class="table-columns">id, content, post_id, user_id, created_at</div>
+                </div>
+                <div class="table-item" draggable="true" data-table="categories">
+                    <div class="table-name">Categories</div>
+                    <div class="table-columns">id, name, description</div>
+                </div>
+                <div class="table-item" draggable="true" data-table="tags">
+                    <div class="table-name">Tags</div>
+                    <div class="table-columns">id, name</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <div class="grid-pattern"></div>
+            <canvas id="schemaCanvas"></canvas>
+            <div class="instructions">
+                <h3>Instructions</h3>
+                <ul>
+                    <li>Drag tables from sidebar to canvas</li>
+                    <li>Click and drag tables to reposition</li>
+                    <li>Double-click a table to edit columns</li>
+                    <li>Click between tables to create relationships</li>
+                    <li>Right-click table to delete</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="status-dot"></div>
+            <span>Canvas: <span id="canvasSize">0x0</span></span>
+        </div>
+        <div class="status-item">
+            <span>Tables: <span id="tableCount">0</span></span>
+        </div>
+        <div class="status-item">
+            <span>Relationships: <span id="relationshipCount">0</span></span>
+        </div>
+        <div class="status-item">
+            <span>MiMo DB Studio v1.0</span>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('schemaCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = canvas.parentElement;
+        
+        // State management
+        let tables = [];
+        let relationships = [];
+        let selectedTable = null;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let tableIdCounter = 0;
+        
+        // Table definitions
+        const tableDefinitions = {
+            users: {
+                name: 'Users',
+                columns: [
+                    { name: 'id', type: 'INT', isPrimary: true },
+                    { name: 'name', type: 'VARCHAR(255)' },
+                    { name: 'email', type: 'VARCHAR(255)' },
+                    { name: 'password', type: 'VARCHAR(255)' },
+                    { name: 'created_at', type: 'TIMESTAMP' },
+                    { name: 'updated_at', type: 'TIMESTAMP' }
+                ]
+            },
+            posts: {
+                name: 'Posts',
+                columns: [
+                    { name: 'id', type: 'INT', isPrimary: true },
+                    { name: 'title', type: 'VARCHAR(255)' },
+                    { name: 'content', type: 'TEXT' },
+                    { name: 'user_id', type: 'INT', isForeign: true },
+                    { name: 'category_id', type: 'INT', isForeign: true },
+                    { name: 'created_at', type: 'TIMESTAMP' },
+                    { name: 'updated_at', type: 'TIMESTAMP' }
+                ]
+            },
+            comments: {
+                name: 'Comments',
+                columns: [
+                    { name: 'id', type: 'INT', isPrimary: true },
+                    { name: 'content', type: 'TEXT' },
+                    { name: 'post_id', type: 'INT', isForeign: true },
+                    { name: 'user_id', type: 'INT', isForeign: true },
+                    { name: 'created_at', type: 'TIMESTAMP' },
+                    { name: 'updated_at', type: 'TIMESTAMP' }
+                ]
+            },
+            categories: {
+                name: 'Categories',
+                columns: [
+                    { name: 'id', type: 'INT', isPrimary: true },
+                    { name: 'name', type: 'VARCHAR(255)' },
+                    { name: 'description', type: 'TEXT' },
+                    { name: 'parent_id', type: 'INT', isForeign: true }
+                ]
+            },
+            tags: {
+                name: 'Tags',
+                columns: [
+                    { name: 'id', type: 'INT', isPrimary: true },
+                    { name: 'name', type: 'VARCHAR(255)' }
+                ]
+            }
+        };
+        
+        // Initialize canvas
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            updateStatus();
+            draw();
+        }
+        
+        // Draw everything
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw relationships
+            drawRelationships();
+            
+            // Draw tables
+            tables.forEach(table => {
+                drawTable(table);
+            });
+        }
+        
+        // Draw a single table
+        function drawTable(table) {
+            const { x, y, width, height, data } = table;
+            
+            // Table background
+            ctx.fillStyle = 'rgba(26, 26, 46, 0.95)';
+            ctx.strokeStyle = table === selectedTable ? '#a29bfe' : '#6c5ce7';
+            ctx.lineWidth = table === selectedTable ? 3 : 2;
+            
+            // Draw rounded rectangle
+            ctx.beginPath();
+            ctx.roundRect(x, y, width, height, 10);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Header
+            ctx.fillStyle = 'linear-gradient(135deg, #6c5ce7, #a29bfe)';
+            ctx.fillStyle = '#6c5ce7';
+            ctx.beginPath();
+            ctx.roundRect(x, y, width, 40, [10, 10, 0, 0]);
+            ctx.fill();
+            
+            // Header text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px "Segoe UI"';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(data.name, x + width/2, y + 20);
+            
+            // Columns
+            const startY = y + 50;
+            const rowHeight = 25;
+            
+            data.columns.forEach((col, i) => {
+                const rowY = startY + i * rowHeight;
+                
+                // Column background (alternating)
+                ctx.fillStyle = i % 2 === 0 ? 'rgba(108, 92, 231, 0.1)' : 'transparent';
+                ctx.fillRect(x + 5, rowY, width - 10, rowHeight);
+                
+                // Primary key indicator
+                if (col.isPrimary) {
+                    ctx.fillStyle = '#ffd700';
+                    ctx.beginPath();
+                    ctx.arc(x + 15, rowY + 12, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Foreign key indicator
+                if (col.isForeign) {
+                    ctx.fillStyle = '#48dbfb';
+                    ctx.beginPath();
+                    ctx.arc(x + 15, rowY + 12, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Column name
+                ctx.fillStyle = '#e0e0e0';
+                ctx.font = '12px "Segoe UI"';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(col.name, x + 25, rowY + 12);
+                
+                // Column type
+                ctx.fillStyle = '#a29bfe';
+                ctx.textAlign = 'right';
+                ctx.fillText(col.type, x + width - 15, rowY + 12);
+            });
+            
+            // Connection points (ports)
+            const ports = getConnectionPoints(table);
+            ports.forEach(port => {
+                ctx.fillStyle = '#6c5ce7';
+                ctx.beginPath();
+                ctx.arc(port.x, port.y, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#a29bfe';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
+        
+        // Get connection points for a table
+        function getConnectionPoints(table) {
+            return [
+                { x: table.x + table.width / 2, y: table.y, side: 'top' },
+                { x: table.x + table.width, y: table.y + table.height / 2, side: 'right' },
+                { x: table.x + table.width / 2, y: table.y + table.height, side: 'bottom' },
+                { x: table.x, y: table.y + table.height / 2, side: 'left' }
+            ];
+        }
+        
+        // Draw relationships
+        function drawRelationships() {
+            ctx.strokeStyle = '#a29bfe';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            
+            relationships.forEach(rel => {
+                const fromTable = tables.find(t => t.id === rel.from);
+                const toTable = tables.find(t => t.id === rel.to);
+                
+                if (fromTable && toTable) {
+                    // Draw curved line between tables
+                    const fromCenter = {
+                        x: fromTable.x + fromTable.width / 2,
+                        y: fromTable.y + fromTable.height / 2
+                    };
+                    const toCenter = {
+                        x: toTable.x + toTable.width / 2,
+                        y: toTable.y + toTable.height / 2
+                    };
+                    
+                    // Simple straight line for now
+                    ctx.beginPath();
+                    ctx.moveTo(fromCenter.x, fromCenter.y);
+                    ctx.lineTo(toCenter.x, toCenter.y);
+                    ctx.stroke();
+                    
+                    // Draw arrow
+                    const angle = Math.atan2(toCenter.y - fromCenter.y, toCenter.x - fromCenter.x);
+                    const arrowLength = 15;
+                    const arrowX = toCenter.x - Math.cos(angle) * 30;
+                    const arrowY = toCenter.y - Math.sin(angle) * 30;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(arrowX, arrowY);
+                    ctx.lineTo(arrowX - arrowLength * Math.cos(angle - Math.PI / 6), arrowY - arrowLength * Math.sin(angle - Math.PI / 6));
+                    ctx.moveTo(arrowX, arrowY);
+                    ctx.lineTo(arrowX - arrowLength * Math.cos(angle + Math.PI / 6), arrowY - arrowLength * Math.sin(angle + Math.PI / 6));
+                    ctx.stroke();
+                }
+            });
+            
+            ctx.setLineDash([]);
+        }
+        
+        // Add a table to the canvas
+        function addTable(tableKey, x, y) {
+            const definition = tableDefinitions[tableKey];
+            if (!definition) return;
+            
+            // Calculate dimensions
+            const columnCount = definition.columns.length;
+            const width = 250;
+            const height = 50 + (columnCount * 25) + 20;
+            
+            const table = {
+                id: tableIdCounter++,
+                x: x,
+                y: y,
+                width: width,
+                height: height,
+                data: definition
+            };
+            
+            tables.push(table);
+            
+            // Add relationships based on foreign keys
+            definition.columns.forEach(col => {
+                if (col.isForeign) {
+                    // Find the referenced table
+                    const refTableKey = col.name.replace('_id', '') + 's';
+                    const refTable = tables.find(t => t.data.name.toLowerCase() === refTableKey);
+                    if (refTable) {
+                        relationships.push({
+                            from: table.id,
+                            to: refTable.id,
+                            fromColumn: col.name,
+                            toColumn: 'id'
+                        });
+                    }
+                }
+            });
+            
+            updateStatus();
+            draw();
+            return table;
+        }
+        
+        // Drag and drop handling
+        const tableItems = document.querySelectorAll('.table-item');
+        tableItems.forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', item.dataset.table);
+                item.classList.add('dragging');
+            });
+            
+            item.addEventListener('dragend', (e) => {
+                item.classList.remove('dragging');
+            });
+        });
+        
+        canvas.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        
+        canvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const tableKey = e.dataTransfer.getData('text/plain');
+            if (tableKey) {
+                addTable(tableKey, x - 125, y - 25);
+            }
+        });
+        
+        // Canvas mouse events
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Check if clicked on a table
+            for (let i = tables.length - 1; i >= 0; i--) {
+                const table = tables[i];
+                if (x >= table.x && x <= table.x + table.width &&
+                    y >= table.y && y <= table.y + table.height) {
+                    selectedTable = table;
+                    isDragging = true;
+                    dragOffset = {
+                        x: x - table.x,
+                        y: y - table.y
+                    };
+                    
+                    // Move to front
+                    tables.splice(i, 1);
+                    tables.push(table);
+                    
+                    draw();
+                    return;
+                }
+            }
+            
+            selectedTable = null;
+            draw();
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging && selectedTable) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                selectedTable.x = x - dragOffset.x;
+                selectedTable.y = y - dragOffset.y;
+                
+                // Keep within bounds
+                selectedTable.x = Math.max(0, Math.min(canvas.width - selectedTable.width, selectedTable.x));
+                selectedTable.y = Math.max(0, Math.min(canvas.height - selectedTable.height, selectedTable.y));
+                
+                draw();
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+        
+        // Right click to delete
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            for (let i = tables.length - 1; i >= 0; i--) {
+                const table = tables[i];
+                if (x >= table.x && x <= table.x + table.width &&
+                    y >= table.y && y <= table.y + table.height) {
+                    // Remove table and related relationships
+                    relationships = relationships.filter(rel => 
+                        rel.from !== table.id && rel.to !== table.id
+                    );
+                    tables.splice(i, 1);
+                    updateStatus();
+                    draw();
+                    return;
+                }
+            }
+        });
+        
+        // Update status bar
+        function updateStatus() {
+            document.getElementById('canvasSize').textContent = `${canvas.width}x${canvas.height}`;
+            document.getElementById('tableCount').textContent = tables.length;
+            document.getElementById('relationshipCount').textContent = relationships.length;
+        }
+        
+        // Add new table (button)
+        function addNewTable() {
+            const name = prompt('Enter table name:');
+            if (name) {
+                const table = {
+                    id: tableIdCounter++,
+                    x: Math.random() * (canvas.width - 250),
+                    y: Math.random() * (canvas.height - 150),
+                    width: 250,
+                    height: 100,
+                    data: {
+                        name: name,
+                        columns: [
+                            { name: 'id', type: 'INT', isPrimary: true },
+                            { name: 'name', type: 'VARCHAR(255)' },
+                            { name: 'created_at', type: 'TIMESTAMP' }
+                        ]
+                    }
+                };
+                tables.push(table);
+                updateStatus();
+                draw();
+            }
+        }
+        
+        // Save schema as SQL
+        function saveSchema() {
+            let sql = '-- Generated by MiMo DB Studio\n\n';
+            
+            tables.forEach(table => {
+                sql += `CREATE TABLE ${table.data.name.toLowerCase()} (\n`;
+                
+                table.data.columns.forEach((col, i) => {
+                    let line = `  ${col.name} ${col.type}`;
+                    if (col.isPrimary) line += ' PRIMARY KEY';
+                    if (i < table.data.columns.length - 1) line += ',';
+                    sql += line + '\n';
+                });
+                
+                sql += ');\n\n';
+            });
+            
+            // Add foreign key constraints
+            relationships.forEach(rel => {
+                const fromTable = tables.find(t => t.id === rel.from);
+                const toTable = tables.find(t => t.id === rel.to);
+                if (fromTable && toTable) {
+                    sql += `ALTER TABLE ${fromTable.data.name.toLowerCase()} ADD CONSTRAINT fk_${fromTable.data.name.toLowerCase()}_${toTable.data.name.toLowerCase()} `;
+                    sql += `FOREIGN KEY (${rel.fromColumn}) REFERENCES ${toTable.data.name.toLowerCase()}(${rel.toColumn});\n`;
+                }
+            });
+            
+            // Download SQL file
+            const blob = new Blob([sql], { type: 'text/sql' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'schema.sql';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Clear canvas
+        function clearCanvas() {
+            if (confirm('Are you sure you want to clear all tables?')) {
+                tables = [];
+                relationships = [];
+                selectedTable = null;
+                updateStatus();
+                draw();
+            }
+        }
+        
+        // Initialize
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        // Add initial tables for demonstration
+        setTimeout(() => {
+            addTable('users', 100, 100);
+            addTable('posts', 400, 100);
+            addTable('comments', 700, 100);
+            
+            // Add explicit relationships
+            relationships = [
+                { from: 1, to: 0, fromColumn: 'user_id', toColumn: 'id' },
+                { from: 2, to: 1, fromColumn: 'post_id', toColumn: 'id' },
+                { from: 2, to: 0, fromColumn: 'user_id', toColumn: 'id' }
+            ];
+            
+            updateStatus();
+            draw();
+        }, 100);
+        
+        // Polyfill for roundRect if not supported
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+                if (typeof radius === 'number') {
+                    radius = {tl: radius, tr: radius, br: radius, bl: radius};
+                }
+                this.moveTo(x + radius.tl, y);
+                this.lineTo(x + width - radius.tr, y);
+                this.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
+                this.lineTo(x + width, y + height - radius.br);
+                this.quadraticCurveTo(x + width, y + height, x + width - radius.br, y + height);
+                this.lineTo(x + radius.bl, y + height);
+                this.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
+                this.lineTo(x, y + radius.tl);
+                this.quadraticCurveTo(x, y, x + radius.tl, y);
+                this.closePath();
+            };
+        }
+    </script>
+</body>
+</html>
